@@ -1,0 +1,60 @@
+* Overview
+** ellm.el
+ellm.el provides an interactive shell for chatting with a Large
+Language Model (LLM), such as OpenAI's ChatGPT, directly from
+Emacs. It leverages Emacs’s built-in `comint-mode` for an interactive
+REPL-like experience (with prompt, history, etc.) and uses Emacs's
+built-in URL and JSON libraries to communicate with the OpenAI
+API—without relying on any external dependencies.
+
+** Features
+- *Interactive Chat:* Dedicated chat buffer with prompt and history.
+- *Multi-turn Conversations:* Maintains conversation history and sends it with each API request.
+- *Minimal Dependencies:* Built entirely with Emacs native libraries (`comint` and `json`).
+- *Customizable:* Easily configure the API key, model, system prompt, and welcome message through Emacs customization.
+
+** Installation
+1. *Download the Package:*
+   Save the file `ellm.el` in your Emacs load-path (for example, in `~/.emacs.d/lisp/`).
+
+2. *Load the Package:*
+   Add the following lines to your Emacs init file (e.g., `~/.emacs` or `~/.emacs.d/init.el`):
+
+
+   #+BEGIN_SRC emacs-lisp
+   (add-to-list 'load-path "~/.emacs.d/lisp/")
+   (require 'ellm)
+   #+END_SRC
+
+** Configuration
+Before using ellm.el, set your OpenAI API key in your Emacs init file:
+
+#+BEGIN_SRC emacs-lisp
+(setq ellm-api-key "YOUR-OPENAI-API-KEY")
+#+END_SRC
+
+You can also customize other options:
+
+- *ellm-model:*
+  Specify the model to use (default is `"chatgpt-4o-latest"` in this minimal implementation). For example:
+
+
+  #+BEGIN_SRC emacs-lisp
+  (setq ellm-model "gpt-3.5-turbo")  ;; or any other model you wish to use
+  #+END_SRC
+
+- ellm-system-message:
+  This message is sent as the system prompt to the LLM at the start of the conversation.
+
+
+  #+BEGIN_SRC emacs-lisp
+  (setq ellm-system-message "You use markdown liberally to structure responses. Always show code snippets in markdown blocks with language labels.")
+  #+END_SRC
+
+- *ellm-welcome-message:*
+  The welcome message is displayed in the chat buffer when you start a session (it is not sent as part of the payload).
+
+
+  #+BEGIN_SRC emacs-lisp
+  (setq ellm-welcome-message "💬 ElLM is ready! Type your prompt and press Enter. (Type 'clear' to reset.)")
+  #+END_SRC
