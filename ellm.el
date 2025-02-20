@@ -175,6 +175,7 @@ ORIG-BUFFER is the ellm chat buffer to receive the response."
   "Callback to handle the HTTP response from OpenAI.
 STATUS is the response status; ORIG-BUFFER is where to insert the reply."
   (if (plist-get status :error)
+      ;; Error case: API request failed
       (progn
         (message "ElLM: API request failed: %s" (plist-get status :error))
         (when (buffer-live-p orig-buffer)
@@ -184,28 +185,36 @@ STATUS is the response status; ORIG-BUFFER is where to insert the reply."
               (insert "Error: Failed to retrieve response from the LLM.\n")
               (setq ellm--busy nil)
               (ellm--insert-prompt)))))
+    ;; Success case: parse response
     (goto-char (point-min))
-    (when (search-forward "\n\n" nil t)
+    (when (search-forward "\n\n" nil t)  ;; find the JSON body
       (let* ((json-object-type 'alist)
              (json-array-type 'list)
              (response (if (fboundp 'json-parse-buffer)
                            (json-parse-buffer :object-type 'alist :array-type 'list)
                          (json-read)))
-	     (choices (alist-get 'choices response))
-             (first-choice (car choices))
-             (msg (alist-get 'message first-choice))
-             (answer (alist-get 'content msg))))
+             ;; Extract fields safely
+             (choices   (alist-get 'choices response))
+             (first     (when (and choices (listp choices)) (car choices)))
+             (msg       (when (and first (listp first)) (alist-get 'message first)))
+             (content   (when (and msg (listp msg)) (alist-get 'content msg)))
+             (answer    (and (stringp content) content)))  ; ensure answer is a string or nil
         (when (buffer-live-p orig-buffer)
           (with-current-buffer orig-buffer
             (let ((inhibit-read-only t))
               (goto-char (point-max))
-              (insert (or answer "[No response]") "\n")
-              (setq ellm--conversation
-                    (append ellm--conversation
-                            (list `(("role" . "assistant") ("content" . ,answer)))))
+              ;; Insert the answer or a fallback message
+              (insert (if answer answer "[No response]") "\n")
+              ;; Update conversation history if answer exists
+              (when answer
+                (setq ellm--conversation
+                      (append ellm--conversation
+                              (list `(("role" . "assistant") ("content" . ,answer))))))
+              ;; If no answer, we do not append a nil content message.
               (setq ellm--busy nil)
-              (ellm--insert-prompt)))))))
-  (kill-buffer (current-buffer)))
+              (ellm--insert-prompt))))))
+    ;; Clean up: kill the temporary response buffer
+    (kill-buffer (current-buffer))))
 
 (provide 'ellm)
 ;;; ellm.el ends here
