@@ -58,3 +58,6 @@ You can also customize other options:
   #+BEGIN_SRC emacs-lisp
   (setq ellm-welcome-message "💬 ElLM is ready! Type your prompt and press Enter. (Type 'clear' to reset.)")
   #+END_SRC
+
+** Inspiration
+- [[https://github.com/xenodium/chatgpt-shell][chatgpt-shell]]: A multi-llm Emacs comint shell
