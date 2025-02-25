@@ -99,7 +99,8 @@ Each entry is an alist like ((\"role\" . \"user\") (\"content\" . \"...\")).")
 
 ;;;###autoload
 (defun ellm (&optional reset)
-  "Launch a ElLM chat session. With prefix argument RESET, start a fresh session."
+  "Launch a ElLM chat session.
+With prefix argument RESET, start a fresh session."
   (interactive "P")
   (let ((buf-name "*ElLM*"))
     (when reset
@@ -222,6 +223,23 @@ STATUS is the response status; ORIG-BUFFER is where to insert the reply."
               (ellm--insert-prompt))))))
     ;; Clean up: kill the temporary response buffer
     (kill-buffer (current-buffer))))
+
+;;; Additional preset commands:
+(defcustom ellm-describe-code-prompt "Describe the following code:\n%s"
+  "Template prompt for describing code.
+%s will be replaced by the selected code region."
+  :type 'string
+  :group 'ellm)
+
+(defun ellm-describe-code ()
+  "Explain the code in the selected region using OpenAI."
+  (interactive)
+  (unless (use-region-p)
+    (user-error "No region selected.  Please select a code region to explain.  "))
+  (let* ((region-text (buffer-substring-no-properties (region-beginning) (region-end)))
+         (prompt (format ellm-describe-code-prompt region-text)))
+    (ellm)
+    (ellm--send nil prompt)))
 
 (provide 'ellm)
 ;;; ellm.el ends here
