@@ -223,5 +223,25 @@ STATUS is the response status; ORIG-BUFFER is where to insert the reply."
     ;; Clean up: kill the temporary response buffer
     (kill-buffer (current-buffer))))
 
+;;; Additional preset commands:
+(defcustom ellm-explain-code-prompt "Explain the following code:\n%s"
+  "Template prompt  for explaining code.
+%s will be replaced by the selected code region."
+  :type 'string
+  :group 'ellm)
+
+(defun ellm-explain-code (beg end)
+  "Explain the code in the selected region from BEG to END using OpenAI.
+This command constructs a prompt asking the LLM to explain the following code,
+and then sends that prompt via `ellm-send`. The response is inserted inline in
+the *ElLM* chat buffer."
+  (interactive "r")
+  (unless (use-region-p)
+    (error "No region selected. Please select a code region to explain."))
+  (let ((prompt (format ellm-explain-code-prompt
+                        (buffer-substring-no-properties beg end))))
+    (ellm)
+    (ellm--send nil prompt)))
+
 (provide 'ellm)
 ;;; ellm.el ends here
