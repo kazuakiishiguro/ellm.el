@@ -88,7 +88,14 @@ Each entry is an alist like ((\"role\" . \"user\") (\"content\" . \"...\")).")
   (setq comint-prompt-regexp "^ElLM> ")
   (setq comint-prompt-read-only t)
   (setq comint-input-sender #'ellm--send)
+  (define-key ellm-mode-map (kbd "C-d") #'ellm-exit-session)
   (visual-line-mode 1))
+
+;; Exit session
+(defun ellm-exit-session ()
+  "Gracefully exit LLM session"
+  (interactive)
+  (kill-buffer-and-window))
 
 ;;;###autoload
 (defun ellm (&optional reset)
