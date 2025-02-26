@@ -27,7 +27,7 @@ This can be a string containing the API key, or a function that returns the key 
   :type '(choice (const :tag "Not set" nil) string function)
   :group 'ellm)
 
-(defcustom ellm-model "chatgpt-4o-latest"
+(defcustom ellm-model "o3-mini"
   "Which OpenAI model to use for chat completions."
   :type 'string
   :group 'ellm)
