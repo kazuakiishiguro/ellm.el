@@ -102,6 +102,17 @@ Each entry is an alist like ((\"role\" . \"user\") (\"content\" . \"...\")).")
   "Launch a ElLM chat session.
 With prefix argument RESET, start a fresh session."
   (interactive "P")
+  (ellm--prepare-buffer reset)
+  ;; Display the welcome message in the buffer output, but do not add it to the payload.
+  (when ellm-welcome-message
+    (comint-output-filter (get-buffer-process (current-buffer))
+                          (concat ellm-welcome-message "\n")))
+  (ellm--insert-prompt))
+
+(defun ellm--prepare-buffer (&optional reset)
+  "Launch a ElLM chat session.
+With prefix argument RESET, start a fresh session.
+This is primary used for preset functions."
   (let ((buf-name "*ElLM*"))
     (when reset
       (when (get-buffer buf-name)
@@ -118,12 +129,7 @@ With prefix argument RESET, start a fresh session."
       (push `(("role" . "system") ("content" . ,ellm-system-message))
             ellm--conversation))
     (let ((inhibit-read-only t))
-      (erase-buffer))
-    ;; Display the welcome message in the buffer output, but do not add it to the payload.
-    (when ellm-welcome-message
-      (comint-output-filter (get-buffer-process (current-buffer))
-                            (concat ellm-welcome-message "\n")))
-    (ellm--insert-prompt)))
+      (erase-buffer))))
 
 (defun ellm--send (_proc input)
   "Handle user INPUT in the ElLM comint buffer.
@@ -231,6 +237,7 @@ STATUS is the response status; ORIG-BUFFER is where to insert the reply."
   :type 'string
   :group 'ellm)
 
+;;;###autoload
 (defun ellm-describe-code ()
   "Explain the code in the selected region using OpenAI."
   (interactive)
@@ -238,7 +245,7 @@ STATUS is the response status; ORIG-BUFFER is where to insert the reply."
     (user-error "No region selected.  Please select a code region to explain.  "))
   (let* ((region-text (buffer-substring-no-properties (region-beginning) (region-end)))
          (prompt (format ellm-describe-code-prompt region-text)))
-    (ellm)
+    (ellm--prepare-buffer)
     (ellm--send nil prompt)))
 
 (provide 'ellm)
