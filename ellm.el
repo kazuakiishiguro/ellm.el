@@ -21,6 +21,7 @@
 
 (require 'comint)
 (require 'json)
+(require 'url)
 
 (defgroup ellm nil
   "Interactive coding assistant with an LLM (Large Language Model) in Emacs."
@@ -371,13 +372,13 @@ ORIG-BUFFER is the ellm chat buffer to receive the response."
     ;; Add Authorization header if API key is provided
     (when api-key
       (push (cons "Authorization" (concat "Bearer " api-key)) headers))
-    (let ((url-request-method "POST")
-          (url-request-extra-headers headers)
-          (url-request-data (encode-coding-string json-data 'utf-8)))
-      (url-retrieve endpoint
-                    #'ellm--handle-response
-                    (list orig-buffer)
-                    t))))
+    (setq url-request-method "POST"
+          url-request-extra-headers headers
+          url-request-data (encode-coding-string json-data 'utf-8))
+    (url-retrieve endpoint
+                  #'ellm--handle-response
+                  (list orig-buffer)
+                  t)))
 
 (defun ellm--extract-answer (response)
   "Extract answer content from RESPONSE based on server type."
@@ -404,11 +405,9 @@ ORIG-BUFFER is the ellm chat buffer to receive the response."
   "Check if RESPONSE contains tool calls and handle them in _ORIG-BUFFER."
   (let* ((choices (alist-get 'choices response))
          (first (when choices (car choices)))
-         (message (when first (alist-get 'message first)))
-         (tool-calls (when message (alist-get 'tool_calls message))))
-    (when tool-calls
-      ;; Process tool calls here (we'll implement this later)
-      nil)))
+         (message (when first (alist-get 'message first))))
+    ;; Just check if tool calls exist for now, will be implemented later
+    (and message (alist-get 'tool_calls message nil))))
 
 (defun ellm--handle-response (status orig-buffer)
   "Callback to handle the HTTP response from the LLM server.
