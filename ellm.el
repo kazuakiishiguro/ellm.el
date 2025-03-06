@@ -28,8 +28,8 @@
 
 (defcustom ellm-api-key nil
   "API key used for authentication with the LLM server.
-This can be a string containing the API key, or a function that returns the key string.
-For most local LLM servers, this is optional."
+This can be a string containing the API key, or a function that returns
+the key string. For most local LLM servers, this is optional."
   :type '(choice (const :tag "Not set" nil) string function)
   :group 'ellm)
 

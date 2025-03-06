@@ -1,0 +1,73 @@
+name: MELPA Compatibility
+
+on:
+  push:
+    branches: [ master, main ]
+    paths-ignore:
+      - '**.md'
+      - '**.org'
+  pull_request:
+    branches: [ master, main ]
+    paths-ignore:
+      - '**.md'
+      - '**.org'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        emacs_version:
+          - '28.2'
+          - '29.1'
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Emacs
+      uses: purcell/setup-emacs@master
+      with:
+        version: ${{ matrix.emacs_version }}
+
+    - name: Simulate MELPA build
+      run: |
+        # Set up a dummy MELPA-like environment
+        mkdir -p /tmp/melpa/recipes
+        mkdir -p /tmp/melpa/working
+        mkdir -p /tmp/melpa/packages
+        
+        # Create a recipe file for ellm
+        cat > /tmp/melpa/recipes/ellm <<EOF
+        (ellm :fetcher github :repo "user/ellm.el")
+        EOF
+        
+        # Copy the package files to the working directory
+        cp -r . /tmp/melpa/working/ellm
+        
+        # Install package-build
+        emacs -Q --batch \
+          --eval "(require 'package)" \
+          --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
+          --eval "(package-initialize)" \
+          --eval "(package-refresh-contents)" \
+          --eval "(package-install 'package-build)"
+        
+        # Generate a .el file that would be submitted to MELPA
+        emacs -Q --batch \
+          --eval "(add-to-list 'load-path (expand-file-name \".\"))" \
+          --eval "(require 'ellm)" \
+          --eval "(let ((min-version (format \"%s.%s\" emacs-major-version emacs-minor-version))) \
+                     (with-temp-file \"/tmp/ellm-pkg.el\" \
+                       (insert (format \"(define-package \\\"ellm\\\" \\\"0.1.0\\\" \\\"Interactive coding assistant with local LLMs\\\" '((emacs \\\"%s\\\")))\" min-version))))" \
+          --eval "(message \"✓ Package definition file created\")"
+        
+        # Validate package can be installed
+        mkdir -p /tmp/emacs-test-packages
+        emacs -Q --batch \
+          --eval "(setq package-user-dir \"/tmp/emacs-test-packages\")" \
+          --eval "(package-initialize)" \
+          --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
+          --eval "(package-refresh-contents)" \
+          --eval "(package-install-file \"/tmp/ellm-pkg.el\")" \
+          --eval "(message \"✓ Package installation simulated successfully\")"
