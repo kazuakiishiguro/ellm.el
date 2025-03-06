@@ -8,6 +8,7 @@ It leverages Emacs's built-in =comint-mode= for an interactive REPL-like experie
 ** Features
 - *Interactive Coding Assistant:* Dedicated chat buffer with prompt and history for code-related tasks
 - *Local LLM Support:* Works with DeepSeek, Qwen, Ollama, and any OpenAI-compatible local server
+- *Built-in Server Management:* Can start, stop, and manage local LLM servers directly from Emacs
 - *Multi-turn Conversations:* Maintains conversation history and sends it with each API request
 - *Special Commands:* Built-in commands for listing files, searching code, reading files, etc.
 - *Context Management:* Ability to set context directories and add files to conversation context
@@ -33,23 +34,69 @@ It leverages Emacs's built-in =comint-mode= for an interactive REPL-like experie
    (require 'ellm)
    #+END_SRC
 
+*** Development and Testing
+If you're developing or contributing to ellm.el, the package includes:
+
+- Comprehensive ERT tests (=ellm-tests.el=)
+- GitHub Actions workflows for testing across multiple Emacs versions
+- Linting for package guidelines compliance
+
+To run the tests locally:
+#+BEGIN_SRC emacs-lisp
+(require 'ellm-tests)
+(ert-run-tests-interactively "ellm-test")
+#+END_SRC
+
 ** Configuration
 
 *** Server Configuration
 Configure ellm.el to work with your local LLM server:
 
 #+BEGIN_SRC emacs-lisp
-;; Set the server type (local-llama-cpp, local-deepseek, or local-ollama)
+;; Set the server type (local-llama-cpp, local-deepseek, local-ollama, or local-llama-server)
 (setq ellm-server-type "local-llama-cpp")
 
 ;; Optionally customize the endpoint URLs if your servers run on different ports
 (setq ellm-endpoint-config
       '(("local-ollama" . "http://localhost:11434/api/chat")
         ("local-llama-cpp" . "http://localhost:1234/v1/chat/completions")
-        ("local-deepseek" . "http://localhost:8080/v1/chat/completions")))
+        ("local-deepseek" . "http://localhost:8080/v1/chat/completions")
+        ("local-llama-server" . "http://localhost:1234/v1/chat/completions")))
 
 ;; Set the model name according to what's available on your server
 (setq ellm-model "deepseek-coder")  ;; or "qwen1.5-7b", "llama3", etc.
+#+END_SRC
+
+*** Local Server Management
+Emacs can manage your local LLM server directly:
+
+#+BEGIN_SRC emacs-lisp
+;; Configure local LLM server settings
+(setq ellm-local-server-config
+      '((server-bin . "./build/bin/llama-server")       ;; Path to server binary
+        (model . "./models/DeepSeek-R1-Distill-Llama-70B-Q2_K.gguf") ;; Path to model file
+        (args . ("--n-gpu-layers" "59" "--ctx-size" "2048" "--port" "1234"))))  ;; Additional args
+#+END_SRC
+
+You can also configure this interactively with =M-x ellm-configure-server=.
+
+*Server management commands:*
+- =M-x ellm-configure-server= - Configure server binary, model, and parameters
+- =M-x ellm-start-server= - Start the local LLM server
+- =M-x ellm-stop-server= - Stop the running server
+- =M-x ellm-server-status= - Check if the server is running
+
+*Example server configurations:*
+
+For llama.cpp server:
+#+BEGIN_SRC emacs-lisp
+(setq ellm-local-server-config
+      '((server-bin . "./build/bin/llama-server")
+        (model . "./models/DeepSeek-R1-Distill-Llama-70B-Q2_K.gguf")
+        (args . ("--n-gpu-layers" "59" "--ctx-size" "2048" "--port" "1234"))))
+#+END_SRC
+
+For other server configurations, adjust the paths and arguments accordingly.
 #+END_SRC
 
 *** Model Parameters
@@ -92,6 +139,12 @@ Some local servers may require an API key (most don't):
 - =M-x ellm= - Start a new chat session
 - =M-x ellm-describe-code= - Explain the selected code region
 
+*** Server Management Commands
+- =M-x ellm-configure-server= - Configure the local LLM server interactively
+- =M-x ellm-start-server= - Start the local LLM server with configured settings
+- =M-x ellm-stop-server= - Stop the running local LLM server
+- =M-x ellm-server-status= - Check if the local server is running
+
 *** In-Chat Commands
 Once in the ElLM buffer, you can use these commands:
 
@@ -115,6 +168,35 @@ ElLM> /context ~/projects/myproject
 - =M-x ellm-set-context-dir= - Set context directory for code-related queries
 
 ** Usage Examples
+
+*** Local Server Workflow
+1. Configure your local server:
+   #+BEGIN_EXAMPLE
+   M-x ellm-configure-server
+   # Enter the path to your server binary
+   # Enter the path to your model file
+   # Enter any additional arguments
+   #+END_EXAMPLE
+
+2. Start the server:
+   #+BEGIN_EXAMPLE
+   M-x ellm-start-server
+   #+END_EXAMPLE
+
+3. Check server status:
+   #+BEGIN_EXAMPLE
+   M-x ellm-server-status
+   #+END_EXAMPLE
+
+4. Start an ElLM session and begin using it:
+   #+BEGIN_EXAMPLE
+   M-x ellm
+   #+END_EXAMPLE
+
+5. When done, stop the server:
+   #+BEGIN_EXAMPLE
+   M-x ellm-stop-server
+   #+END_EXAMPLE
 
 *** Code Explanation
 Select a region of code in any buffer, then run:
@@ -142,11 +224,39 @@ context to give the LLM more context about your code.
 
 ** Server Setup Tips
 
-*** llama.cpp
+*** llama.cpp Server
 Start llama.cpp with the OpenAI API compatibility mode:
 #+BEGIN_EXAMPLE
 ./server -m models/deepseek-coder.gguf --host 0.0.0.0 --port 1234
 #+END_EXAMPLE
+
+Or use ellm's built-in server management:
+#+BEGIN_EXAMPLE
+M-x ellm-configure-server
+# Enter server binary path: ./build/bin/llama-server
+# Enter model path: ./models/your-model.gguf
+# Enter arguments: --n-gpu-layers 59 --ctx-size 2048 --port 1234
+
+M-x ellm-start-server
+#+END_EXAMPLE
+
+*Common llama.cpp server arguments:*
+- `--n-gpu-layers N`: Number of layers to offload to GPU (higher = more GPU utilization)
+- `--ctx-size N`: Context window size in tokens (affects memory usage)
+- `--port N`: Port to serve the API on (default: 8080)
+- `--host IP`: IP to bind server to (use 0.0.0.0 for remote access)
+- `--threads N`: Number of CPU threads to use
+
+*** Local Llama Server
+Configure your local llama server with:
+#+BEGIN_EXAMPLE
+M-x ellm-configure-server
+#+END_EXAMPLE
+
+Example configuration for DeepSeek models:
+- Server binary: `./build/bin/llama-server`
+- Model: `./DeepSeek-R1-Distill-Llama-70B-GGUF/DeepSeek-R1-Distill-Llama-70B-Q2_K.gguf`
+- Args: `--n-gpu-layers 59 --ctx-size 2048 --port 1234`
 
 *** Ollama
 Start Ollama and pull a model:
@@ -154,10 +264,31 @@ Start Ollama and pull a model:
 ollama run codellama
 #+END_EXAMPLE
 
+For Ollama, make sure to:
+1. Set `ellm-server-type` to "local-ollama"
+2. Set `ellm-model` to match your Ollama model name (e.g., "codellama")
+
 ** Troubleshooting
+
+*** Connection Issues
 - *Connection Error*: Ensure your local LLM server is running and the endpoint URL is correct
+- *Endpoint Not Found*: Verify the endpoint path is correct for your server type
+- *Port Already in Use*: Try using a different port in your server configuration
+
+*** Server Management
+- *Server Fails to Start*: Check your model path and ensure the file exists
+- *Server Crashes on Start*: Try reducing `--n-gpu-layers` or `--ctx-size` to decrease memory usage
+- *Permission Issues*: Ensure you have permission to execute the server binary
+- *Model Loading Error*: Verify that you have the correct model file format for your server version
+
+*** Performance Issues
 - *Slow Responses*: Consider using a smaller/quantized model or adjusting the max_tokens parameter
+- *High Memory Usage*: Reduce context size, use a smaller model, or try a more quantized version
+- *GPU Memory Errors*: Reduce the number of GPU layers or switch to CPU-only inference
+
+*** Response Format Issues
 - *JSON Parsing Errors*: Some models might not correctly follow the OpenAI response format
+- *Unexpected Response Format*: Try a different model or check if your server has a compatibility mode
 
 ** Inspiration
 - [[https://github.com/xenodium/chatgpt-shell][chatgpt-shell]]: A multi-llm Emacs comint shell

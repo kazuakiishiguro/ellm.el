@@ -35,16 +35,35 @@ For most local LLM servers, this is optional."
 
 (defcustom ellm-server-type "local-llama-cpp"
   "Type of LLM server being used.
-Options: local-llama-cpp, local-deepseek, local-ollama"
+Options: local-llama-cpp, local-deepseek, local-ollama, local-llama-server"
   :type 'string
   :group 'ellm)
 
 (defcustom ellm-endpoint-config
   '(("local-ollama" . "http://localhost:11434/api/chat")
     ("local-llama-cpp" . "http://localhost:1234/v1/chat/completions")
-    ("local-deepseek" . "http://localhost:8080/v1/chat/completions"))
+    ("local-deepseek" . "http://localhost:8080/v1/chat/completions")
+    ("local-llama-server" . "http://localhost:1234/v1/chat/completions"))
   "Mapping of server types to API endpoints for different local LLMs."
   :type '(alist :key-type string :value-type string)
+  :group 'ellm)
+
+(defcustom ellm-local-server-config nil
+  "Configuration for running a local LLM server.
+When set, provides the command-line configuration for starting a local server.
+Format is an alist with these keys:
+- server-bin: Path to server binary (e.g., './build/bin/llama-server')
+- model: Path to model file (e.g., './models/model.gguf')
+- args: Additional arguments as a list (e.g., ('--n-gpu-layers' '59' '--ctx-size' '2048'))"
+  :type '(choice
+          (const :tag "Not configured" nil)
+          (list :tag "Server configuration"
+                (cons :tag "Server binary path"
+                      (const server-bin) (string :tag "Path"))
+                (cons :tag "Model path"
+                      (const model) (string :tag "Path"))
+                (cons :tag "Extra arguments"
+                      (const args) (repeat :tag "Arguments" string))))
   :group 'ellm)
 
 (defcustom ellm-model "deepseek-coder"
@@ -113,6 +132,12 @@ Available commands:
 /read [filename] - Read and display file content
 /context [dir] - Set context directory for code-related queries
 clear - Reset the conversation
+
+Server management (used outside the chat buffer):
+M-x ellm-configure-server - Set up local LLM server configuration
+M-x ellm-start-server - Start the local LLM server
+M-x ellm-stop-server - Stop the local LLM server
+M-x ellm-server-status - Check if the local server is running
 
 Example usage:
 /files . *.el
@@ -451,6 +476,101 @@ STATUS is the response status; ORIG-BUFFER is where to insert the reply."
     (insert (format "Context directory set to: %s\n" dir))
     (ellm--insert-prompt))
   (message "Context directory set to %s" dir))
+
+;;; Local server management
+
+(defvar ellm--local-server-process nil
+  "Process object for the local LLM server if started by Emacs.")
+
+(defun ellm--build-server-command ()
+  "Build command list for starting the local LLM server."
+  (unless ellm-local-server-config
+    (user-error "Local server configuration not set. Customize `ellm-local-server-config`"))
+  
+  (let ((server-bin (alist-get 'server-bin ellm-local-server-config))
+        (model-path (alist-get 'model ellm-local-server-config))
+        (args (alist-get 'args ellm-local-server-config)))
+    
+    (unless (and server-bin model-path)
+      (user-error "Server binary and model path must be configured"))
+    
+    (append (list server-bin "--model" model-path) args)))
+
+;;;###autoload
+(defun ellm-start-server ()
+  "Start a local LLM server using the configured settings."
+  (interactive)
+  (if ellm--local-server-process
+      (message "Local LLM server is already running")
+    (if ellm-local-server-config
+        (let ((cmd (ellm--build-server-command))
+              (buf (generate-new-buffer "*ellm-server*")))
+          (message "Starting local LLM server with: %s" 
+                   (mapconcat #'identity cmd " "))
+          (setq ellm--local-server-process 
+                (make-process
+                 :name "ellm-llm-server"
+                 :buffer buf
+                 :command cmd
+                 :sentinel #'ellm--server-sentinel))
+          (message "Local LLM server started. Server logs in buffer: %s" 
+                   (buffer-name buf)))
+      (user-error "Local server configuration not set. Customize `ellm-local-server-config`"))))
+
+(defun ellm--server-sentinel (process event)
+  "Handle PROCESS EVENT for the local LLM server."
+  (when (memq (process-status process) '(exit signal))
+    (message "Local LLM server stopped: %s" (string-trim event))
+    (setq ellm--local-server-process nil)))
+
+;;;###autoload
+(defun ellm-stop-server ()
+  "Stop the running local LLM server."
+  (interactive)
+  (if ellm--local-server-process
+      (progn
+        (message "Stopping local LLM server...")
+        (interrupt-process ellm--local-server-process)
+        (delete-process ellm--local-server-process)
+        (setq ellm--local-server-process nil)
+        (message "Local LLM server stopped"))
+    (message "No local LLM server running")))
+
+;;;###autoload
+(defun ellm-server-status ()
+  "Show status of the local LLM server."
+  (interactive)
+  (if ellm--local-server-process
+      (if (process-live-p ellm--local-server-process)
+          (message "Local LLM server is running (PID: %d)"
+                   (process-id ellm--local-server-process))
+        (message "Local LLM server process exists but is not running"))
+    (message "No local LLM server running")))
+
+;;;###autoload
+(defun ellm-configure-server ()
+  "Configure the local LLM server interactively."
+  (interactive)
+  (let* ((server-bin (read-string "Server binary path: " 
+                                 (or (alist-get 'server-bin ellm-local-server-config) 
+                                     "./build/bin/llama-server")))
+         (model-path (read-file-name "Model file path: " nil
+                                    (alist-get 'model ellm-local-server-config)
+                                    t nil))
+         (args-str (read-string "Additional arguments (space separated): " 
+                               (mapconcat #'identity 
+                                         (or (alist-get 'args ellm-local-server-config) 
+                                             '("--n-gpu-layers" "59" "--ctx-size" "2048" "--port" "1234"))
+                                         " ")))
+         (args (split-string args-str " " t)))
+    
+    (setq ellm-local-server-config
+          `((server-bin . ,server-bin)
+            (model . ,model-path)
+            (args . ,args)))
+    
+    (customize-save-variable 'ellm-local-server-config ellm-local-server-config)
+    (message "Server configuration saved. You can now use `ellm-start-server`")))
 
 ;;; Additional preset commands:
 (defcustom ellm-describe-code-prompt "Describe the following code:\n%s"
