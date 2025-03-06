@@ -1,3 +1,5 @@
+[[https://github.com/kazuakiishiguro/ellm.el/actions/workflows/test.yml][file:https://github.com/kazuakiishiguro/ellm.el/actions/workflows/test.yml/badge.svg?branch=master]]
+
 * ElLM - Emacs Local Language Model Assistant
 
 ** Overview
