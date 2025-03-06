@@ -54,7 +54,8 @@ When set, provides the command-line configuration for starting a local server.
 Format is an alist with these keys:
 - server-bin: Path to server binary (e.g., './build/bin/llama-server')
 - model: Path to model file (e.g., './models/model.gguf')
-- args: Additional arguments as a list (e.g., ('--n-gpu-layers' '59' '--ctx-size' '2048'))"
+- args: Additional arguments as a list (e.g., ('--n-gpu-layers' '59'
+  '--ctx-size' '2048'))"
   :type '(choice
           (const :tag "Not configured" nil)
           (list :tag "Server configuration"
@@ -82,14 +83,21 @@ Common values:
   :type '(alist :key-type string :value-type (alist :key-type symbol :value-type sexp))
   :group 'ellm)
 
-(defcustom ellm-system-message "You are a helpful coding assistant. You use markdown liberally to structure responses with headings, lists, and code blocks. Always show code snippets in markdown blocks with language labels. When asked to modify files, show exact changes needed with file paths."
-   "Initial system prompt message sent to the LLM at the start of conversation.
+(defcustom ellm-system-message 
+  "You are a helpful coding assistant. You use markdown liberally to structure
+responses with headings, lists, and code blocks. Always show code snippets in
+markdown blocks with language labels. When asked to modify files, show exact
+changes needed with file paths."
+  "Initial system prompt message sent to the LLM at the start of conversation.
 If nil or empty, no system message is sent."
-   :type 'string
-   :group 'ellm)
+  :type 'string
+  :group 'ellm)
 
-(defcustom ellm-welcome-message "💬 ElLM coding assistant is ready! Type your prompt and press Enter.\nType '/help' to see available commands. Type 'clear' to reset conversation."
-  "Optional welcome text shown in the chat buffer on startup. Set to nil for no welcome message."
+(defcustom ellm-welcome-message 
+  "💬 ElLM coding assistant is ready! Type your prompt and press Enter.
+Type '/help' to see available commands. Type 'clear' to reset conversation."
+  "Optional welcome text shown in the chat buffer on startup.
+Set to nil for no welcome message."
   :type '(choice string (const nil))
   :group 'ellm)
 
@@ -120,8 +128,8 @@ Each entry is an alist like ((\"role\" . \"user\") (\"content\" . \"...\")).")
   :type '(alist :key-type string :value-type function)
   :group 'ellm)
 
-(defun ellm--cmd-help (args)
-  "Show help message for available commands. ARGS are ignored."
+(defun ellm--cmd-help (_args)
+  "Show help message for available commands. _ARGS are ignored."
   (with-current-buffer (current-buffer)
     (goto-char (point-max))
     (insert "
@@ -161,7 +169,7 @@ Example usage:
     t))
 
 (defun ellm--cmd-search-files (args)
-  "Search for pattern in files. ARGS should be 'pattern [file-pattern]'."
+  "Search for pattern in files. ARGS should be `pattern [file-pattern]`."
   (let* ((parts (split-string args))
          (pattern (car parts))
          (file-pattern (or (cadr parts) "*"))
@@ -392,8 +400,8 @@ ORIG-BUFFER is the ellm chat buffer to receive the response."
        (when message
          (alist-get 'content message))))))
 
-(defun ellm--check-tool-calls (response orig-buffer)
-  "Check if RESPONSE contains tool calls and handle them in ORIG-BUFFER."
+(defun ellm--check-tool-calls (response _orig-buffer)
+  "Check if RESPONSE contains tool calls and handle them in _ORIG-BUFFER."
   (let* ((choices (alist-get 'choices response))
          (first (when choices (car choices)))
          (message (when first (alist-get 'message first)))
