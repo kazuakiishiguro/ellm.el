@@ -1,25 +1,32 @@
-* Overview
-** ellm.el
-ellm.el provides an interactive shell for chatting with a Large
-Language Model (LLM), such as OpenAI's ChatGPT, directly from
-Emacs. It leverages Emacs’s built-in `comint-mode` for an interactive
-REPL-like experience (with prompt, history, etc.) and uses Emacs's
-built-in URL and JSON libraries to communicate with the OpenAI
-API—without relying on any external dependencies.
+* ElLM - Emacs Local Language Model Assistant
+
+** Overview
+ElLM provides an interactive coding assistant interface for working with Large Language Models (LLMs) directly from Emacs. It's designed to be similar to claude-code but for local LLMs like DeepSeek, Qwen, or any LLM you can run locally.
+
+It leverages Emacs's built-in =comint-mode= for an interactive REPL-like experience and uses Emacs's built-in URL and JSON libraries to communicate with local LLM servers—without relying on any external dependencies.
 
 ** Features
-- *Interactive Chat:* Dedicated chat buffer with prompt and history.
-- *Multi-turn Conversations:* Maintains conversation history and sends it with each API request.
-- *Minimal Dependencies:* Built entirely with Emacs native libraries (`comint` and `json`).
-- *Customizable:* Easily configure the API key, model, system prompt, and welcome message through Emacs customization.
+- *Interactive Coding Assistant:* Dedicated chat buffer with prompt and history for code-related tasks
+- *Local LLM Support:* Works with DeepSeek, Qwen, Ollama, and any OpenAI-compatible local server
+- *Multi-turn Conversations:* Maintains conversation history and sends it with each API request
+- *Special Commands:* Built-in commands for listing files, searching code, reading files, etc.
+- *Context Management:* Ability to set context directories and add files to conversation context
+- *Code Analysis:* Dedicated function to explain selected code regions
+- *Minimal Dependencies:* Built entirely with Emacs native libraries (=comint= and =json=)
+- *Customizable:* Configure server types, models, system prompts, and more
 
 ** Installation
-1. *Download the Package:*
-   Save the file `ellm.el` in your Emacs load-path (for example, in `~/.emacs.d/lisp/`).
+1. *Set up a Local LLM Server:*
+   First, you need a local LLM server running. Some options:
+   - [[https://github.com/ollama/ollama][Ollama]]: Easy to use, supports many models (Llama, Mistral, CodeLlama, etc.)
+   - [[https://github.com/ggerganov/llama.cpp][llama.cpp]]: High-performance inference with various quantization options
+   - [[https://github.com/deepseek-ai/DeepSeek-Coder][DeepSeek]]: Specialized coding models with good performance
 
-2. *Load the Package:*
-   Add the following lines to your Emacs init file (e.g., `~/.emacs` or `~/.emacs.d/init.el`):
+2. *Download the Package:*
+   Save the file =ellm.el= in your Emacs load-path (for example, in =~/.emacs.d/lisp/=).
 
+3. *Load the Package:*
+   Add the following lines to your Emacs init file (e.g., =~/.emacs= or =~/.emacs.d/init.el=):
 
    #+BEGIN_SRC emacs-lisp
    (add-to-list 'load-path "~/.emacs.d/lisp/")
@@ -27,37 +34,131 @@ API—without relying on any external dependencies.
    #+END_SRC
 
 ** Configuration
-Before using ellm.el, set your OpenAI API key in your Emacs init file:
+
+*** Server Configuration
+Configure ellm.el to work with your local LLM server:
 
 #+BEGIN_SRC emacs-lisp
-(setq ellm-api-key "YOUR-OPENAI-API-KEY")
+;; Set the server type (local-llama-cpp, local-deepseek, or local-ollama)
+(setq ellm-server-type "local-llama-cpp")
+
+;; Optionally customize the endpoint URLs if your servers run on different ports
+(setq ellm-endpoint-config
+      '(("local-ollama" . "http://localhost:11434/api/chat")
+        ("local-llama-cpp" . "http://localhost:1234/v1/chat/completions")
+        ("local-deepseek" . "http://localhost:8080/v1/chat/completions")))
+
+;; Set the model name according to what's available on your server
+(setq ellm-model "deepseek-coder")  ;; or "qwen1.5-7b", "llama3", etc.
 #+END_SRC
 
-You can also customize other options:
+*** Model Parameters
+Configure model-specific parameters:
 
-- *ellm-model:*
-  Specify the model to use (default is `"chatgpt-4o-latest"` in this minimal implementation). For example:
+#+BEGIN_SRC emacs-lisp
+;; Example: Set model-specific parameters (temperature, max tokens, etc.)
+(setq ellm-model-parameters
+      '(("deepseek-coder" . ((temperature . 0.2) (max_tokens . 4096)))
+        ("qwen1.5-7b" . ((temperature . 0.7) (max_tokens . 2048)))
+        ("llama3" . ((temperature . 0.5) (max_tokens . 2048)))))
+#+END_SRC
 
+*** System Prompt
+Customize the system prompt to control the LLM's behavior:
 
-  #+BEGIN_SRC emacs-lisp
-  (setq ellm-model "gpt-3.5-turbo")  ;; or any other model you wish to use
-  #+END_SRC
+#+BEGIN_SRC emacs-lisp
+(setq ellm-system-message "You are a helpful coding assistant. You use markdown liberally to structure responses with headings, lists, and code blocks. Always show code snippets in markdown blocks with language labels. When asked to modify files, show exact changes needed with file paths.")
+#+END_SRC
 
-- ellm-system-message:
-  This message is sent as the system prompt to the LLM at the start of the conversation.
+*** Welcome Message
+Customize the welcome message shown when starting a session:
 
+#+BEGIN_SRC emacs-lisp
+(setq ellm-welcome-message "💬 ElLM coding assistant is ready! Type your prompt and press Enter.
+Type '/help' to see available commands. Type 'clear' to reset conversation.")
+#+END_SRC
 
-  #+BEGIN_SRC emacs-lisp
-  (setq ellm-system-message "You use markdown liberally to structure responses. Always show code snippets in markdown blocks with language labels.")
-  #+END_SRC
+*** Optional: API Key
+Some local servers may require an API key (most don't):
 
-- *ellm-welcome-message:*
-  The welcome message is displayed in the chat buffer when you start a session (it is not sent as part of the payload).
+#+BEGIN_SRC emacs-lisp
+;; Only needed if your local server requires authentication
+(setq ellm-api-key "your-api-key-if-needed")
+#+END_SRC
 
+** Usage
 
-  #+BEGIN_SRC emacs-lisp
-  (setq ellm-welcome-message "💬 ElLM is ready! Type your prompt and press Enter. (Type 'clear' to reset.)")
-  #+END_SRC
+*** Basic Commands
+- =M-x ellm= - Start a new chat session
+- =M-x ellm-describe-code= - Explain the selected code region
+
+*** In-Chat Commands
+Once in the ElLM buffer, you can use these commands:
+
+- */help* - Show available commands
+- */files [dir] [pattern]* - List files in directory
+- */search [pattern] [file-pattern]* - Search for pattern in files
+- */read [filename]* - Read and display file content
+- */context [dir]* - Set context directory for code-related queries
+- *clear* - Reset the conversation
+
+Example usage:
+#+BEGIN_EXAMPLE
+ElLM> /files . *.el
+ElLM> /search defun *.el
+ElLM> /read /path/to/file.txt
+ElLM> /context ~/projects/myproject
+#+END_EXAMPLE
+
+*** Code Context Functions
+- =M-x ellm-add-file-to-context= - Add file contents to conversation context
+- =M-x ellm-set-context-dir= - Set context directory for code-related queries
+
+** Usage Examples
+
+*** Code Explanation
+Select a region of code in any buffer, then run:
+#+BEGIN_EXAMPLE
+M-x ellm-describe-code
+#+END_EXAMPLE
+
+The code will be sent to the LLM with a request to explain it.
+
+*** Project Context
+Set your project directory as the context:
+#+BEGIN_EXAMPLE
+M-x ellm-set-context-dir
+#+END_EXAMPLE
+Then select the project root directory. Now when you use =\search= commands, 
+they'll search within that directory.
+
+*** Adding File Context
+To help the LLM understand your codebase better:
+#+BEGIN_EXAMPLE
+M-x ellm-add-file-to-context
+#+END_EXAMPLE
+Then select an important file. This adds the file content to the conversation
+context to give the LLM more context about your code.
+
+** Server Setup Tips
+
+*** llama.cpp
+Start llama.cpp with the OpenAI API compatibility mode:
+#+BEGIN_EXAMPLE
+./server -m models/deepseek-coder.gguf --host 0.0.0.0 --port 1234
+#+END_EXAMPLE
+
+*** Ollama
+Start Ollama and pull a model:
+#+BEGIN_EXAMPLE
+ollama run codellama
+#+END_EXAMPLE
+
+** Troubleshooting
+- *Connection Error*: Ensure your local LLM server is running and the endpoint URL is correct
+- *Slow Responses*: Consider using a smaller/quantized model or adjusting the max_tokens parameter
+- *JSON Parsing Errors*: Some models might not correctly follow the OpenAI response format
 
 ** Inspiration
 - [[https://github.com/xenodium/chatgpt-shell][chatgpt-shell]]: A multi-llm Emacs comint shell
+- Claude Code: Claude's CLI tool for code assistance
