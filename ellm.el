@@ -1,6 +1,9 @@
 ;;; ellm.el --- Interactive coding assistant with local LLMs  -*- lexical-binding: t; -*-
 
+;; Copyright (C) 2025 Kazuaki Ishiguro
+
 ;; Author: Kazuaki Ishiguro
+;; Maintainer: Kazuaki Ishiguro
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: convenience, tools, processes
