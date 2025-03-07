@@ -603,7 +603,7 @@ STATUS is the response status; ORIG-BUFFER is where to insert the reply."
   :type 'string
   :group 'ellm)
 
-(defcustom ellm-git-commit-prompt "Generate a concise and descriptive git commit message for the following code changes:\n%s"
+(defcustom ellm-git-commit-prompt "Generate a concise and descriptive git commit message (max 50 chars) for the following code changes. Respond with ONLY the commit message, no explanation or reasoning:\n%s"
   "Template prompt for generating git commit messages.
 %s will be replaced by the selected code region."
   :type 'string
@@ -622,14 +622,73 @@ STATUS is the response status; ORIG-BUFFER is where to insert the reply."
 
 ;;;###autoload
 (defun ellm-git-commit ()
-  "Generate a git commit message for the selected code changes using the LLM."
+  "Generate a git commit message for the selected code changes using the LLM.
+Uses a streamlined approach for faster responses."
   (interactive)
   (unless (use-region-p)
     (user-error "No region selected.  Please select code changes to generate a commit message"))
   (let* ((region-text (buffer-substring-no-properties (region-beginning) (region-end)))
-         (prompt (format ellm-git-commit-prompt region-text)))
-    (ellm--prepare-buffer region-text)
-    (ellm--send nil prompt)))
+         (prompt (format ellm-git-commit-prompt region-text))
+         (buf (get-buffer-create "*ElLM-Commit*"))
+         (endpoint (ellm--get-endpoint))
+         (api-key (ellm--get-api-key))
+         (headers '(("Content-Type" . "application/json; charset=utf-8")))
+         (conversation nil))
+
+    ;; Display a message to indicate processing
+    (message "Generating commit message...")
+
+    ;; Prepare the display buffer
+    (with-current-buffer buf
+      (let ((inhibit-read-only t))
+        (erase-buffer)
+        (insert "Generating commit message...\n\n")))
+    (display-buffer buf)
+
+    ;; Add system message if present
+    (when (and ellm-system-message (not (string-empty-p ellm-system-message)))
+      (push `(("role" . "system") ("content" . ,ellm-system-message)) conversation))
+
+    ;; Add the user prompt
+    (setq conversation (append conversation (list `(("role" . "user") ("content" . ,prompt)))))
+
+    ;; Add API key header if needed
+    (when api-key
+      (push (cons "Authorization" (concat "Bearer " api-key)) headers))
+
+    ;; Set up the request
+    (let ((url-request-method "POST")
+          (url-request-extra-headers headers)
+          (url-request-data (encode-coding-string
+                             (json-encode (ellm--get-payload-for-model ellm-model conversation))
+                             'utf-8)))
+
+      ;; Send the request
+      (url-retrieve endpoint
+                   (lambda (_status)
+                     ;; Process response
+                     (goto-char (point-min))
+                     (when (search-forward "\n\n" nil t)
+                       (let* ((json-object-type 'alist)
+                              (json-array-type 'list)
+                              (response (if (fboundp 'json-parse-buffer)
+                                          (json-parse-buffer :object-type 'alist :array-type 'list)
+                                        (json-read)))
+                              (answer (ellm--extract-answer response)))
+
+                         ;; Update result buffer
+                         (when (buffer-live-p buf)
+                           (with-current-buffer buf
+                             (let ((inhibit-read-only t))
+                               (erase-buffer)
+                               (insert (if answer
+                                          (concat "Git commit message:\n\n" answer)
+                                        "[No response generated]")))))))
+
+                     ;; Clean up temp buffer
+                     (kill-buffer (current-buffer))
+                     (message "Commit message generated."))
+                   nil t))))
 
 (provide 'ellm)
 ;;; ellm.el ends here

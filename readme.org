@@ -128,7 +128,7 @@ Customize prompts for specific tasks like code explanation and git commit messag
 (setq ellm-describe-code-prompt "Describe the following code:\n%s")
 
 ;; Customize the prompt template for git commit message generation
-(setq ellm-git-commit-prompt "Generate a concise and descriptive git commit message for the following code changes:\n%s")
+(setq ellm-git-commit-prompt "Generate a concise and descriptive git commit message (max 50 chars) for the following code changes. Respond with ONLY the commit message, no explanation or reasoning:\n%s")
 #+END_SRC
 
 *** Welcome Message
@@ -227,7 +227,7 @@ After making changes to your code, view the diff or select the changed region, t
 M-x ellm-git-commit
 #+END_EXAMPLE
 
-The LLM will analyze the code changes and generate a suitable commit message.
+The LLM will analyze the code changes and generate a suitable commit message. This command uses a streamlined interface for faster responses with direct output in a dedicated buffer.
 
 *** Project Context
 Set your project directory as the context:
