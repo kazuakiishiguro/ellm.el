@@ -1,0 +1,21 @@
+# Compiled Elisp
+*.elc
+
+# Package builds
+*.tar
+/ellm-*/
+
+# Emacs temp files
+*~
+\#*\#
+.\#*
+
+# Emacs customize settings
+custom.el
+
+# MacOS specific
+.DS_Store
+
+# Other temporary files
+CLAUDE.md
+test-install.el
