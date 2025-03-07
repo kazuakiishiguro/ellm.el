@@ -4,6 +4,7 @@
 
 ;; Author: Kazuaki Ishiguro
 ;; Maintainer: Kazuaki Ishiguro
+;; Created: 2025
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: convenience, tools, processes
@@ -316,11 +317,15 @@ This is primary used for preset functions."
   "Handle user INPUT in the ElLM comint buffer.
 _PROC is ignored; input is processed and sent to the LLM API."
   (let* ((command (string-trim input))
-         (cmd-result (ellm--parse-command command))
+         ;; Remove the "ElLM> " prompt prefix if present
+         (clean-command (if (string-prefix-p "ElLM> " command)
+                            (substring command 6)  ; Length of "ElLM> "
+                          command))
+         (cmd-result (ellm--parse-command clean-command))
          (handler (car cmd-result))
          (args (cdr cmd-result))
          (inhibit-read-only t))
-    (if (string-empty-p command)
+    (if (string-empty-p clean-command)
         (progn
           (goto-char (point-max))
           (insert "[No input]\n")
@@ -332,7 +337,7 @@ _PROC is ignored; input is processed and sent to the LLM API."
             (ellm--insert-prompt))
         (cond
          ;; Handle special built-in commands
-         ((string-equal command "clear")
+         ((string-equal clean-command "clear")
           (setq ellm--conversation nil)
           (when (and ellm-system-message
                      (not (string-empty-p ellm-system-message)))
@@ -353,7 +358,7 @@ _PROC is ignored; input is processed and sent to the LLM API."
          (t
           (setq ellm--conversation
                 (append ellm--conversation
-                        (list `(("role" . "user") ("content" . ,command)))))
+                        (list `(("role" . "user") ("content" . ,clean-command)))))
           (setq ellm--busy t)
           (ellm--api-request (ellm--get-api-key)
                              ellm-model
