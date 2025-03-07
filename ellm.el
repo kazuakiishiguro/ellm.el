@@ -5,7 +5,7 @@
 ;; Author: Kazuaki Ishiguro
 ;; Maintainer: Kazuaki Ishiguro
 ;; Created: 2025
-;; Version: 0.1.0
+;; Version: 0.2.0
 ;; Package-Requires: ((emacs "27.1"))
 ;; Keywords: convenience, tools, processes
 ;; URL: https://github.com/kazuakiishiguro/ellm.el
@@ -20,6 +20,9 @@
 ;;
 ;; Usage:
 ;;  M-x ellm  -- to start a chat session in an Emacs buffer.
+;;  M-x ellm-describe-code -- to explain selected code regions.
+;;  M-x ellm-git-commit -- to generate commit messages for code changes.
+;;
 ;;  In the *ElLM* buffer, type your question at the prompt and press Enter.
 ;;  Type "clear" to reset the conversation.
 ;;  Type "/help" to see available commands.
@@ -600,6 +603,12 @@ STATUS is the response status; ORIG-BUFFER is where to insert the reply."
   :type 'string
   :group 'ellm)
 
+(defcustom ellm-git-commit-prompt "Generate a concise and descriptive git commit message for the following code changes:\n%s"
+  "Template prompt for generating git commit messages.
+%s will be replaced by the selected code region."
+  :type 'string
+  :group 'ellm)
+
 ;;;###autoload
 (defun ellm-describe-code ()
   "Explain the code in the selected region using the LLM."
@@ -608,6 +617,17 @@ STATUS is the response status; ORIG-BUFFER is where to insert the reply."
     (user-error "No region selected.  Please select a code region to explain.  "))
   (let* ((region-text (buffer-substring-no-properties (region-beginning) (region-end)))
          (prompt (format ellm-describe-code-prompt region-text)))
+    (ellm--prepare-buffer region-text)
+    (ellm--send nil prompt)))
+
+;;;###autoload
+(defun ellm-git-commit ()
+  "Generate a git commit message for the selected code changes using the LLM."
+  (interactive)
+  (unless (use-region-p)
+    (user-error "No region selected.  Please select code changes to generate a commit message"))
+  (let* ((region-text (buffer-substring-no-properties (region-beginning) (region-end)))
+         (prompt (format ellm-git-commit-prompt region-text)))
     (ellm--prepare-buffer region-text)
     (ellm--send nil prompt)))
 

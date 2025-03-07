@@ -1,2 +1,2 @@
 ;; Generated package description from ellm.el  -*- no-byte-compile: t -*-
-(define-package "ellm" "0.1.0" "Interactive coding assistant with local LLMs" '((emacs "27.1")) :authors '(("Kazuaki Ishiguro")) :maintainer '("Kazuaki Ishiguro") :keywords '("convenience" "tools" "processes") :url "https://github.com/kazuakiishiguro/ellm.el")
+(define-package "ellm" "0.2.0" "Interactive coding assistant with local LLMs" '((emacs "27.1")) :authors '(("Kazuaki Ishiguro")) :maintainer '("Kazuaki Ishiguro") :keywords '("convenience" "tools" "processes") :url "https://github.com/kazuakiishiguro/ellm.el")

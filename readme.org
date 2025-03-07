@@ -15,6 +15,7 @@ It leverages Emacs's built-in =comint-mode= for an interactive REPL-like experie
 - *Special Commands:* Built-in commands for listing files, searching code, reading files, etc.
 - *Context Management:* Ability to set context directories and add files to conversation context
 - *Code Analysis:* Dedicated function to explain selected code regions
+- *Git Integration:* Generate commit messages from code changes
 - *Minimal Dependencies:* Built entirely with Emacs native libraries (=comint= and =json=)
 - *Customizable:* Configure server types, models, system prompts, and more
 
@@ -119,6 +120,17 @@ Customize the system prompt to control the LLM's behavior:
 (setq ellm-system-message "You are a helpful coding assistant. You use markdown liberally to structure responses with headings, lists, and code blocks. Always show code snippets in markdown blocks with language labels. When asked to modify files, show exact changes needed with file paths.")
 #+END_SRC
 
+*** Task-Specific Prompts
+Customize prompts for specific tasks like code explanation and git commit messages:
+
+#+BEGIN_SRC emacs-lisp
+;; Customize the prompt template for code explanation
+(setq ellm-describe-code-prompt "Describe the following code:\n%s")
+
+;; Customize the prompt template for git commit message generation
+(setq ellm-git-commit-prompt "Generate a concise and descriptive git commit message for the following code changes:\n%s")
+#+END_SRC
+
 *** Welcome Message
 Customize the welcome message shown when starting a session:
 
@@ -140,6 +152,7 @@ Some local servers may require an API key (most don't):
 *** Basic Commands
 - =M-x ellm= - Start a new chat session
 - =M-x ellm-describe-code= - Explain the selected code region
+- =M-x ellm-git-commit= - Generate a git commit message for selected code changes
 
 *** Server Management Commands
 - =M-x ellm-configure-server= - Configure the local LLM server interactively
@@ -207,6 +220,14 @@ M-x ellm-describe-code
 #+END_EXAMPLE
 
 The code will be sent to the LLM with a request to explain it.
+
+*** Git Commit Message Generation
+After making changes to your code, view the diff or select the changed region, then run:
+#+BEGIN_EXAMPLE
+M-x ellm-git-commit
+#+END_EXAMPLE
+
+The LLM will analyze the code changes and generate a suitable commit message.
 
 *** Project Context
 Set your project directory as the context:
