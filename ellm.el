@@ -1,5 +1,11 @@
 ;;; ellm.el --- Interactive coding assistant with local LLMs  -*- lexical-binding: t; -*-
 
+;; Author: Kazuaki Ishiguro
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "27.1"))
+;; Keywords: convenience, tools, processes
+;; URL: https://github.com/kazuakiishiguro/ellm.el
+
 ;;; Commentary:
 ;; ellm.el provides an interactive shell for working with Large Language Models
 ;; directly from Emacs.  It's designed to be similar to claude-code but for local LLMs
