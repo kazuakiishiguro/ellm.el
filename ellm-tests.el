@@ -1,100 +1,114 @@
-;;; ellm-tests.el --- Tests for ellm.el  -*- lexical-binding: t; -*-
+;;; ellm-tests.el --- Tests for ellm.el -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2024
+
+;; Author: 
+;; URL: https://github.com/yourusername/ellm.el
 
 ;;; Commentary:
-;; Tests for ellm.el using ERT framework
+
+;; Tests for ellm.el
 
 ;;; Code:
 
 (require 'ert)
 (require 'ellm)
+(require 'cl-lib)
 
-;; Basic test
-(ert-deftest ellm-test-simple ()
-  "A simple test to verify ERT is working."
-  (should (equal 1 1)))
+(ert-deftest ellm-test-buffer-creation ()
+  "Test that ellm creates a buffer with the correct name."
+  (when (get-buffer ellm-buffer-name)
+    (kill-buffer ellm-buffer-name))
+  (should (not (get-buffer ellm-buffer-name)))
+  (cl-letf (((symbol-function 'switch-to-buffer-other-window) #'ignore)
+            ((symbol-function 'ellm-fetch-models) #'ignore))
+    (ellm)
+    (should (get-buffer ellm-buffer-name))
+    (should (with-current-buffer ellm-buffer-name
+              (eq major-mode 'ellm-mode)))))
 
-;; Test ellm--get-endpoint
-(ert-deftest ellm-test-get-endpoint ()
-  "Test that ellm--get-endpoint returns the correct endpoint."
-  (let ((ellm-server-type "local-llama-cpp")
-        (ellm-endpoint-config '(("local-llama-cpp" . "http://localhost:1234/v1/chat/completions"))))
-    (should (string= (ellm--get-endpoint) "http://localhost:1234/v1/chat/completions"))))
+(ert-deftest ellm-test-prompt-insertion ()
+  "Test that ellm-insert-prompt correctly inserts a prompt."
+  (when (get-buffer ellm-buffer-name)
+    (kill-buffer ellm-buffer-name))
+  (cl-letf (((symbol-function 'switch-to-buffer-other-window) #'ignore)
+            ((symbol-function 'ellm-fetch-models) #'ignore))
+    (ellm)
+    (with-current-buffer ellm-buffer-name
+      (goto-char (point-min))
+      (should (search-forward "You: " nil t))
+      (should (get-text-property (1- (point)) 'ellm-prompt-start)))))
 
-;; Test ellm--get-api-key
-(ert-deftest ellm-test-get-api-key ()
-  "Test that ellm--get-api-key handles different types of API key configurations."
-  (let ((ellm-api-key "test-key"))
-    (should (string= (ellm--get-api-key) "test-key")))
-  
-  (let ((ellm-api-key (lambda () "lambda-key")))
-    (should (string= (ellm--get-api-key) "lambda-key")))
-  
-  (let ((ellm-api-key nil))
-    (should (null (ellm--get-api-key)))))
+(ert-deftest ellm-test-find-prompt-start ()
+  "Test that ellm-find-prompt-start finds the correct position."
+  (when (get-buffer ellm-buffer-name)
+    (kill-buffer ellm-buffer-name))
+  (cl-letf (((symbol-function 'switch-to-buffer-other-window) #'ignore)
+            ((symbol-function 'ellm-fetch-models) #'ignore))
+    (ellm)
+    (with-current-buffer ellm-buffer-name
+      (let ((start-pos (ellm-find-prompt-start)))
+        (should start-pos)
+        (should (get-text-property start-pos 'ellm-prompt-start))))))
 
-;; Test ellm--get-payload-for-model
-(ert-deftest ellm-test-get-payload-for-model ()
-  "Test that ellm--get-payload-for-model correctly constructs the API payload."
-  (let ((ellm-model-parameters '(("test-model" . ((temperature . 0.5) (max_tokens . 1000))))))
-    (let ((payload (ellm--get-payload-for-model "test-model" '((("role" . "user") ("content" . "hello"))))))
-      (should (equal (alist-get "model" payload nil nil #'string-equal) "test-model"))
-      (should (equal (alist-get 'temperature payload) 0.5))
-      (should (equal (alist-get 'max_tokens payload) 1000)))))
+(ert-deftest ellm-test-clear-buffer ()
+  "Test that ellm-clear-buffer clears the buffer and adds a new prompt."
+  (when (get-buffer ellm-buffer-name)
+    (kill-buffer ellm-buffer-name))
+  (cl-letf (((symbol-function 'switch-to-buffer-other-window) #'ignore)
+            ((symbol-function 'ellm-fetch-models) #'ignore))
+    (ellm)
+    (with-current-buffer ellm-buffer-name
+      (let ((inhibit-read-only t))
+        (insert "Test content that should be cleared"))
+      (ellm-clear-buffer)
+      (should (= (point-min) 1))
+      (should (search-forward "You: " nil t))
+      (should (get-text-property (1- (point)) 'ellm-prompt-start)))))
 
-;; Test ellm--build-server-command
-(ert-deftest ellm-test-build-server-command ()
-  "Test that ellm--build-server-command builds correct command line arguments."
-  (let ((ellm-local-server-config 
-         '((server-bin . "/path/to/server")
-           (model . "/path/to/model.gguf")
-           (args . ("--n-gpu-layers" "59" "--ctx-size" "2048")))))
-    (should (equal (ellm--build-server-command)
-                   '("/path/to/server" "--model" "/path/to/model.gguf" 
-                     "--n-gpu-layers" "59" "--ctx-size" "2048")))))
+(ert-deftest ellm-test-model-selection ()
+  "Test model selection functionality."
+  (let ((ellm-available-models '("model1" "model2" "model3")))
+    (cl-letf (((symbol-function 'completing-read) 
+               (lambda (prompt collection &rest _) 
+                 (should (string= prompt "Select model: "))
+                 (should (equal collection '("model1" "model2" "model3")))
+                 "model2")))
+      (ellm-select-model)
+      (should (string= ellm-model "model2")))))
 
-;; Test ellm--build-server-command with missing configuration
-(ert-deftest ellm-test-build-server-command-missing-config ()
-  "Test that ellm--build-server-command handles missing configuration."
-  (let ((ellm-local-server-config nil))
-    (should-error (ellm--build-server-command)))
-  
-  (let ((ellm-local-server-config '((server-bin . "/path/to/server"))))
-    (should-error (ellm--build-server-command)))
-  
-  (let ((ellm-local-server-config '((model . "/path/to/model.gguf"))))
-    (should-error (ellm--build-server-command))))
-
-;; Test ellm--parse-command
-(ert-deftest ellm-test-parse-command ()
-  "Test that ellm--parse-command correctly parses special commands."
-  (let ((ellm-special-commands '(("help" . ellm--cmd-help)
-                               ("files" . ellm--cmd-list-files))))
-    ;; Test valid command
-    (let ((result (ellm--parse-command "/help")))
-      (should (equal (car result) 'ellm--cmd-help))
-      (should (string= (cdr result) "")))
-    
-    ;; Test valid command with arguments
-    (let ((result (ellm--parse-command "/files /path/to/dir")))
-      (should (equal (car result) 'ellm--cmd-list-files))
-      (should (string= (cdr result) "/path/to/dir")))
-    
-    ;; Test unknown command
-    (let ((result (ellm--parse-command "/unknown command")))
-      (should (null (car result)))
-      (should (string= (cdr result) "/unknown command")))
-    
-    ;; Test regular input (not a command)
-    (let ((result (ellm--parse-command "regular input")))
-      (should (null (car result)))
-      (should (string= (cdr result) "regular input")))))
-
-;; Test extract answer - simplified version
-(ert-deftest ellm-test-extract-answer-simple ()
-  "Basic test for ellm--extract-answer."
-  (let ((ellm-server-type "local-llama-cpp"))
-    (let ((resp (list (cons 'choices (list (list (cons 'message (list (cons 'content "hello")))))))))
-      (should (equal (ellm--extract-answer resp) "hello")))))
+(ert-deftest ellm-test-history-management ()
+  "Test that history is properly maintained."
+  (let ((ellm-history nil)
+        (ellm-history-max-entries 3)
+        (ellm-current-request nil))
+    ;; Mock the url-retrieve function to avoid actual network calls
+    (cl-letf (((symbol-function 'url-retrieve)
+               (lambda (url callback &rest _) 
+                 (should (string-match-p "/api/generate" url))
+                 nil)))
+      
+      ;; Add three prompts
+      (ellm-send-request "prompt1")
+      (ellm-send-request "prompt2")
+      (ellm-send-request "prompt3")
+      
+      ;; Check history length and order
+      (should (= (length ellm-history) 3))
+      (should (string= (cdr (nth 0 ellm-history)) "prompt3"))
+      (should (string= (cdr (nth 1 ellm-history)) "prompt2"))
+      (should (string= (cdr (nth 2 ellm-history)) "prompt1"))
+      
+      ;; Add one more prompt to test max entries
+      (ellm-send-request "prompt4")
+      
+      ;; Check that oldest entry was removed
+      (should (= (length ellm-history) 3))
+      (should (string= (cdr (nth 0 ellm-history)) "prompt4"))
+      (should (string= (cdr (nth 1 ellm-history)) "prompt3"))
+      (should (string= (cdr (nth 2 ellm-history)) "prompt2"))
+      (should (not (cl-find "prompt1" ellm-history 
+                            :test (lambda (p e) (string= p (cdr e)))))))))
 
 (provide 'ellm-tests)
 ;;; ellm-tests.el ends here

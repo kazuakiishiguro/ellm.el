@@ -2,47 +2,32 @@ name: Lint
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ master ]
 
 jobs:
   lint:
     runs-on: ubuntu-latest
+    
     steps:
     - uses: actions/checkout@v3
-
+    
     - name: Set up Emacs
       uses: purcell/setup-emacs@master
       with:
-        version: '29.1'
+        version: '28.1'
 
     - name: Install package-lint
       run: |
-        mkdir -p ~/.emacs.d/lisp
-        git clone https://github.com/purcell/package-lint.git ~/.emacs.d/lisp/package-lint
-        emacs -Q --batch \
-          --eval "(add-to-list 'load-path \"~/.emacs.d/lisp/package-lint\")" \
-          --eval "(require 'package-lint)" \
-          --eval "(message \"✓ Package-lint installed successfully\")"
+        emacs --batch --eval "(require 'package)" \
+              --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
+              --eval "(package-initialize)" \
+              --eval "(package-refresh-contents)" \
+              --eval "(package-install 'package-lint)"
 
-    - name: Run package-lint
+    - name: Lint
       run: |
-        emacs -Q --batch \
-          --eval "(add-to-list 'load-path \"~/.emacs.d/lisp/package-lint\")" \
-          --eval "(require 'package-lint)" \
-          --eval "(setq package-lint-main-file \"ellm.el\")" \
-          --eval "(package-lint-batch-and-exit \"ellm.el\")"
-
-    - name: Check package format
-      run: |
-        emacs -Q --batch \
-          --eval "(require 'package)" \
-          --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://melpa.org/packages/\") t)" \
-          --eval "(package-initialize)" \
-          --eval "(package-refresh-contents)" \
-          --eval "(package-install 'package-build)" \
-          --eval "(require 'package-build)" \
-          --eval "(setq package-build-working-dir (expand-file-name \".\"))" \
-          --eval "(condition-case err (package-build-all-archives t) (error (message \"⚠ Warning: %s\" (error-message-string err))))" \
-          --eval "(message \"✓ Package format check completed\")"
+        emacs --batch -l package-lint.el \
+              --eval "(setq package-lint-main-file \"ellm.el\")" \
+              -f package-lint-batch-and-exit ellm.el ellm-tests.el

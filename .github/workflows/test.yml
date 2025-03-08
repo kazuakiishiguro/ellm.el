@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ master ]
 
 jobs:
   test:
@@ -12,15 +12,17 @@ jobs:
     strategy:
       matrix:
         emacs_version:
-          - '27.1'
-          - '28.1'
-          - '29.1'
-          - 'snapshot'
-      fail-fast: false
+          - 27.1
+          - 27.2
+          - 28.1
+          - snapshot
+        include:
+          - emacs_version: snapshot
+            allow_failure: true
 
     steps:
     - uses: actions/checkout@v3
-
+    
     - name: Set up Emacs
       uses: purcell/setup-emacs@master
       with:
@@ -28,25 +30,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        # No external dependencies needed - ellm uses built-in packages only
+        emacs --batch -l test-install.el
 
-    - name: Check for byte-compilation warnings
+    - name: Run tests
       run: |
-        emacs -Q --batch \
-          --eval "(setq byte-compile-error-on-warn t)" \
-          -f batch-byte-compile ellm.el
-      
-    - name: Check package loads correctly
-      run: |
-        emacs -Q --batch \
-          --eval "(add-to-list 'load-path (expand-file-name \".\"))" \
-          --eval "(require 'ellm)" \
-          --eval "(message \"✓ Package loaded successfully\")"
-          
-    - name: Run ERT tests
-      run: |
-        emacs -Q --batch \
-          --eval "(add-to-list 'load-path (expand-file-name \".\"))" \
-          --eval "(require 'ellm)" \
-          --eval "(require 'ellm-tests)" \
-          --eval "(ert-run-tests-batch-and-exit)"
+        emacs --batch -L . -l ellm-tests.el -f ert-run-tests-batch-and-exit

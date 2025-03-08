@@ -1,318 +1,111 @@
-[[https://github.com/kazuakiishiguro/ellm.el/actions/workflows/test.yml][file:https://github.com/kazuakiishiguro/ellm.el/actions/workflows/test.yml/badge.svg?branch=master]]
-
-* ElLM - Emacs Local Language Model Assistant
-
-** Overview
-ElLM provides an interactive coding assistant interface for working with Large Language Models (LLMs) directly from Emacs. It's designed to be similar to claude-code but for local LLMs like DeepSeek, Qwen, or any LLM you can run locally.
-
-It leverages Emacs's built-in =comint-mode= for an interactive REPL-like experience and uses Emacs's built-in URL and JSON libraries to communicate with local LLM servers—without relying on any external dependencies.
-
-** Features
-- *Interactive Coding Assistant:* Dedicated chat buffer with prompt and history for code-related tasks
-- *Local LLM Support:* Works with DeepSeek, Qwen, Ollama, and any OpenAI-compatible local server
-- *Built-in Server Management:* Can start, stop, and manage local LLM servers directly from Emacs
-- *Multi-turn Conversations:* Maintains conversation history and sends it with each API request
-- *Special Commands:* Built-in commands for listing files, searching code, reading files, etc.
-- *Context Management:* Ability to set context directories and add files to conversation context
-- *Code Analysis:* Dedicated function to explain selected code regions
-- *Git Integration:* Generate commit messages from code changes
-- *Minimal Dependencies:* Built entirely with Emacs native libraries (=comint= and =json=)
-- *Customizable:* Configure server types, models, system prompts, and more
-
-** Installation
-1. *Set up a Local LLM Server:*
-   First, you need a local LLM server running. Some options:
-   - [[https://github.com/ollama/ollama][Ollama]]: Easy to use, supports many models (Llama, Mistral, CodeLlama, etc.)
-   - [[https://github.com/ggerganov/llama.cpp][llama.cpp]]: High-performance inference with various quantization options
-   - [[https://github.com/deepseek-ai/DeepSeek-Coder][DeepSeek]]: Specialized coding models with good performance
-
-2. *Download the Package:*
-   Save the file =ellm.el= in your Emacs load-path (for example, in =~/.emacs.d/lisp/=).
-
-3. *Load the Package:*
-   Add the following lines to your Emacs init file (e.g., =~/.emacs= or =~/.emacs.d/init.el=):
-
-   #+BEGIN_SRC emacs-lisp
-   (add-to-list 'load-path "~/.emacs.d/lisp/")
-   (require 'ellm)
-   #+END_SRC
-
-*** Development and Testing
-If you're developing or contributing to ellm.el, the package includes:
-
-- Comprehensive ERT tests (=ellm-tests.el=)
-- GitHub Actions workflows for testing across multiple Emacs versions
-- Linting for package guidelines compliance
-
-To run the tests locally:
-#+BEGIN_SRC emacs-lisp
-(require 'ellm-tests)
-(ert-run-tests-interactively "ellm-test")
-#+END_SRC
-
-** Configuration
-
-*** Server Configuration
-Configure ellm.el to work with your local LLM server:
-
-#+BEGIN_SRC emacs-lisp
-;; Set the server type (local-llama-cpp, local-deepseek, local-ollama, or local-llama-server)
-(setq ellm-server-type "local-llama-cpp")
-
-;; Optionally customize the endpoint URLs if your servers run on different ports
-(setq ellm-endpoint-config
-      '(("local-ollama" . "http://localhost:11434/api/chat")
-        ("local-llama-cpp" . "http://localhost:1234/v1/chat/completions")
-        ("local-deepseek" . "http://localhost:8080/v1/chat/completions")
-        ("local-llama-server" . "http://localhost:1234/v1/chat/completions")))
-
-;; Set the model name according to what's available on your server
-(setq ellm-model "deepseek-coder")  ;; or "qwen1.5-7b", "llama3", etc.
-#+END_SRC
-
-*** Local Server Management
-Emacs can manage your local LLM server directly:
-
-#+BEGIN_SRC emacs-lisp
-;; Configure local LLM server settings
-(setq ellm-local-server-config
-      '((server-bin . "./build/bin/llama-server")       ;; Path to server binary
-        (model . "./models/DeepSeek-R1-Distill-Llama-70B-Q2_K.gguf") ;; Path to model file
-        (args . ("--n-gpu-layers" "59" "--ctx-size" "2048" "--port" "1234"))))  ;; Additional args
-#+END_SRC
-
-You can also configure this interactively with =M-x ellm-configure-server=.
-
-*Server management commands:*
-- =M-x ellm-configure-server= - Configure server binary, model, and parameters
-- =M-x ellm-start-server= - Start the local LLM server
-- =M-x ellm-stop-server= - Stop the running server
-- =M-x ellm-server-status= - Check if the server is running
-
-*Example server configurations:*
-
-For llama.cpp server:
-#+BEGIN_SRC emacs-lisp
-(setq ellm-local-server-config
-      '((server-bin . "./build/bin/llama-server")
-        (model . "./models/DeepSeek-R1-Distill-Llama-70B-Q2_K.gguf")
-        (args . ("--n-gpu-layers" "59" "--ctx-size" "2048" "--port" "1234"))))
-#+END_SRC
-
-For other server configurations, adjust the paths and arguments accordingly.
-#+END_SRC
-
-*** Model Parameters
-Configure model-specific parameters:
-
-#+BEGIN_SRC emacs-lisp
-;; Example: Set model-specific parameters (temperature, max tokens, etc.)
-(setq ellm-model-parameters
-      '(("deepseek-coder" . ((temperature . 0.2) (max_tokens . 4096)))
-        ("qwen1.5-7b" . ((temperature . 0.7) (max_tokens . 2048)))
-        ("llama3" . ((temperature . 0.5) (max_tokens . 2048)))))
-#+END_SRC
-
-*** System Prompt
-Customize the system prompt to control the LLM's behavior:
-
-#+BEGIN_SRC emacs-lisp
-(setq ellm-system-message "You are a helpful coding assistant. You use markdown liberally to structure responses with headings, lists, and code blocks. Always show code snippets in markdown blocks with language labels. When asked to modify files, show exact changes needed with file paths.")
-#+END_SRC
-
-*** Task-Specific Prompts
-Customize prompts for specific tasks like code explanation and git commit messages:
-
-#+BEGIN_SRC emacs-lisp
-;; Customize the prompt template for code explanation
-(setq ellm-describe-code-prompt "Describe the following code:\n%s")
-
-;; Customize the prompt template for git commit message generation
-(setq ellm-git-commit-prompt "Generate a concise and descriptive git commit message (max 50 chars) for the following code changes. Respond with ONLY the commit message, no explanation or reasoning:\n%s")
-#+END_SRC
-
-*** Welcome Message
-Customize the welcome message shown when starting a session:
-
-#+BEGIN_SRC emacs-lisp
-(setq ellm-welcome-message "💬 ElLM coding assistant is ready! Type your prompt and press Enter.
-Type '/help' to see available commands. Type 'clear' to reset conversation.")
-#+END_SRC
-
-*** Optional: API Key
-Some local servers may require an API key (most don't):
-
-#+BEGIN_SRC emacs-lisp
-;; Only needed if your local server requires authentication
-(setq ellm-api-key "your-api-key-if-needed")
-#+END_SRC
-
-** Usage
-
-*** Basic Commands
-- =M-x ellm= - Start a new chat session
-- =M-x ellm-describe-code= - Explain the selected code region
-- =M-x ellm-git-commit= - Generate a git commit message for selected code changes
-
-*** Server Management Commands
-- =M-x ellm-configure-server= - Configure the local LLM server interactively
-- =M-x ellm-start-server= - Start the local LLM server with configured settings
-- =M-x ellm-stop-server= - Stop the running local LLM server
-- =M-x ellm-server-status= - Check if the local server is running
-
-*** In-Chat Commands
-Once in the ElLM buffer, you can use these commands:
-
-- */help* - Show available commands
-- */files [dir] [pattern]* - List files in directory
-- */search [pattern] [file-pattern]* - Search for pattern in files
-- */read [filename]* - Read and display file content
-- */context [dir]* - Set context directory for code-related queries
-- *clear* - Reset the conversation
-
-Example usage:
-#+BEGIN_EXAMPLE
-ElLM> /files . *.el
-ElLM> /search defun *.el
-ElLM> /read /path/to/file.txt
-ElLM> /context ~/projects/myproject
-#+END_EXAMPLE
-
-*** Code Context Functions
-- =M-x ellm-add-file-to-context= - Add file contents to conversation context
-- =M-x ellm-set-context-dir= - Set context directory for code-related queries
-
-** Usage Examples
-
-*** Local Server Workflow
-1. Configure your local server:
-   #+BEGIN_EXAMPLE
-   M-x ellm-configure-server
-   # Enter the path to your server binary
-   # Enter the path to your model file
-   # Enter any additional arguments
-   #+END_EXAMPLE
-
-2. Start the server:
-   #+BEGIN_EXAMPLE
-   M-x ellm-start-server
-   #+END_EXAMPLE
-
-3. Check server status:
-   #+BEGIN_EXAMPLE
-   M-x ellm-server-status
-   #+END_EXAMPLE
-
-4. Start an ElLM session and begin using it:
-   #+BEGIN_EXAMPLE
-   M-x ellm
-   #+END_EXAMPLE
-
-5. When done, stop the server:
-   #+BEGIN_EXAMPLE
-   M-x ellm-stop-server
-   #+END_EXAMPLE
-
-*** Code Explanation
-Select a region of code in any buffer, then run:
-#+BEGIN_EXAMPLE
-M-x ellm-describe-code
-#+END_EXAMPLE
-
-The code will be sent to the LLM with a request to explain it.
-
-*** Git Commit Message Generation
-After making changes to your code, view the diff or select the changed region, then run:
-#+BEGIN_EXAMPLE
-M-x ellm-git-commit
-#+END_EXAMPLE
-
-The LLM will analyze the code changes and generate a suitable commit message. This command uses a streamlined interface for faster responses with direct output in a dedicated buffer.
-
-*** Project Context
-Set your project directory as the context:
-#+BEGIN_EXAMPLE
-M-x ellm-set-context-dir
-#+END_EXAMPLE
-Then select the project root directory. Now when you use =\search= commands, 
-they'll search within that directory.
-
-*** Adding File Context
-To help the LLM understand your codebase better:
-#+BEGIN_EXAMPLE
-M-x ellm-add-file-to-context
-#+END_EXAMPLE
-Then select an important file. This adds the file content to the conversation
-context to give the LLM more context about your code.
-
-** Server Setup Tips
-
-*** llama.cpp Server
-Start llama.cpp with the OpenAI API compatibility mode:
-#+BEGIN_EXAMPLE
-./server -m models/deepseek-coder.gguf --host 0.0.0.0 --port 1234
-#+END_EXAMPLE
-
-Or use ellm's built-in server management:
-#+BEGIN_EXAMPLE
-M-x ellm-configure-server
-# Enter server binary path: ./build/bin/llama-server
-# Enter model path: ./models/your-model.gguf
-# Enter arguments: --n-gpu-layers 59 --ctx-size 2048 --port 1234
-
-M-x ellm-start-server
-#+END_EXAMPLE
-
-*Common llama.cpp server arguments:*
-- `--n-gpu-layers N`: Number of layers to offload to GPU (higher = more GPU utilization)
-- `--ctx-size N`: Context window size in tokens (affects memory usage)
-- `--port N`: Port to serve the API on (default: 8080)
-- `--host IP`: IP to bind server to (use 0.0.0.0 for remote access)
-- `--threads N`: Number of CPU threads to use
-
-*** Local Llama Server
-Configure your local llama server with:
-#+BEGIN_EXAMPLE
-M-x ellm-configure-server
-#+END_EXAMPLE
-
-Example configuration for DeepSeek models:
-- Server binary: `./build/bin/llama-server`
-- Model: `./DeepSeek-R1-Distill-Llama-70B-GGUF/DeepSeek-R1-Distill-Llama-70B-Q2_K.gguf`
-- Args: `--n-gpu-layers 59 --ctx-size 2048 --port 1234`
-
-*** Ollama
-Start Ollama and pull a model:
-#+BEGIN_EXAMPLE
-ollama run codellama
-#+END_EXAMPLE
-
-For Ollama, make sure to:
-1. Set `ellm-server-type` to "local-ollama"
-2. Set `ellm-model` to match your Ollama model name (e.g., "codellama")
-
-** Troubleshooting
-
-*** Connection Issues
-- *Connection Error*: Ensure your local LLM server is running and the endpoint URL is correct
-- *Endpoint Not Found*: Verify the endpoint path is correct for your server type
-- *Port Already in Use*: Try using a different port in your server configuration
-
-*** Server Management
-- *Server Fails to Start*: Check your model path and ensure the file exists
-- *Server Crashes on Start*: Try reducing `--n-gpu-layers` or `--ctx-size` to decrease memory usage
-- *Permission Issues*: Ensure you have permission to execute the server binary
-- *Model Loading Error*: Verify that you have the correct model file format for your server version
-
-*** Performance Issues
-- *Slow Responses*: Consider using a smaller/quantized model or adjusting the max_tokens parameter
-- *High Memory Usage*: Reduce context size, use a smaller model, or try a more quantized version
-- *GPU Memory Errors*: Reduce the number of GPU layers or switch to CPU-only inference
-
-*** Response Format Issues
-- *JSON Parsing Errors*: Some models might not correctly follow the OpenAI response format
-- *Unexpected Response Format*: Try a different model or check if your server has a compatibility mode
-
-** Inspiration
-- [[https://github.com/xenodium/chatgpt-shell][chatgpt-shell]]: A multi-llm Emacs comint shell
-- Claude Code: Claude's CLI tool for code assistance
+#+title: ELLM - Emacs Local LLM Interface
+#+author: 
+#+date: 2024
+
+* Overview
+
+ELLM is an Emacs package to interact with a local Ollama LLM server. It provides a simple interface to send prompts to and receive responses from various language models served by Ollama.
+
+Inspired by [[https://github.com/xenodium/chatgpt-shell][chatgpt-shell]].
+
+* Requirements
+
+- Emacs 27.1 or later
+- markdown-mode 2.3 or later
+- A running Ollama server (default: http://localhost:11434)
+- spinner.el (optional, for progress indicators)
+
+* Installation
+
+** Manual Installation
+
+Clone this repository:
+
+#+begin_src bash
+git clone https://github.com/yourusername/ellm.el.git ~/.emacs.d/site-lisp/ellm
+#+end_src
+
+Add to your Emacs configuration:
+
+#+begin_src emacs-lisp
+(add-to-list 'load-path "~/.emacs.d/site-lisp/ellm")
+(require 'ellm)
+#+end_src
+
+** Using use-package
+
+#+begin_src emacs-lisp
+(use-package ellm
+  :load-path "~/.emacs.d/site-lisp/ellm")
+#+end_src
+
+* Usage
+
+** Interactive Chat
+
+To start an interactive session with Ollama:
+
+#+begin_src
+M-x ellm
+#+end_src
+
+This will open a new buffer where you can enter prompts and receive responses.
+
+** Other Entry Points
+
+- ~M-x ellm-region~ - Send the selected region to Ollama
+- ~M-x ellm-buffer~ - Send the entire buffer to Ollama
+- ~M-x ellm-git-commit~ - Generate a git commit message based on staged changes
+
+* Configuration
+
+Customize the package with the following variables:
+
+#+begin_src emacs-lisp
+;; Change the default model
+(setq ellm-model "llama3")
+
+;; Change the Ollama server URL
+(setq ellm-base-url "http://localhost:11434")
+
+;; Change how the buffer is displayed
+(setq ellm-display-function #'switch-to-buffer)
+
+;; Enable/disable markdown rendering in responses
+(setq ellm-markdown-rendering t)
+
+;; Change the spinner type (requires spinner.el)
+(setq ellm-spinner-type 'progress-bar)
+
+;; Set the maximum number of history entries to keep
+(setq ellm-history-max-entries 50)
+#+end_src
+
+* Key Bindings
+
+| Key     | Function            | Description                        |
+|---------+---------------------+------------------------------------|
+| RET     | ellm-send           | Send prompt to Ollama              |
+| C-c C-c | ellm-send           | Send prompt to Ollama              |
+| C-c C-k | ellm-cancel         | Cancel the current request         |
+| C-c C-q | ellm-quit           | Quit the ELLM buffer               |
+| C-c C-n | ellm-next-prompt    | Move to the next prompt            |
+| C-c C-p | ellm-previous-prompt | Move to the previous prompt       |
+| C-c C-m | ellm-select-model   | Select an Ollama model to use      |
+| C-c C-r | ellm-clear-buffer   | Clear the buffer and start fresh   |
+
+* Ollama Models
+
+The package will attempt to fetch a list of available models from your local Ollama server. If you want to use a specific model:
+
+#+begin_src emacs-lisp
+;; Set default model
+(setq ellm-model "llama3")
+
+;; Or select interactively
+M-x ellm-select-model
+#+end_src
+
+* License
+
+This project is licensed under the GPL-3.0 License - see the LICENSE file for details.
