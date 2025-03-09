@@ -102,6 +102,10 @@ VALIDATE-COMMAND handler."
          :context-window 131072)))
 
 (defun chatgpt-shell-ollama--fetch-model-versions ()
+  "Fetch and return Ollama model names without version suffixes.
+- Calls `/api/tags` endpoint on `ellm-base-url`
+- Parses JSON response to extract models
+- Strips `:latest` from each model name."
   (mapcar (lambda (model)
             (string-remove-suffix ":latest" (map-elt model 'name)))
           (map-elt (shell-maker--json-parse-string
