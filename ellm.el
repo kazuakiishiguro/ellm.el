@@ -721,19 +721,19 @@ Set CONTEXT, STREAMING, TEMPERATURE, and SYSTEM-PROMPT as usual."
              :context context
              :settings settings)))
 
-;;;###autoload
-(defun chatgpt-shell (&optional new-session)
-  "Start a ChatGPT shell interactive command.
-
-With NEW-SESSION, start a new session."
-  (interactive "P")
-  (chatgpt-shell-start nil new-session))
-
 (defvar chatgpt-shell-mode-map (make-sparse-keymap)
   "Keymap for `chatgpt-shell-mode'.")
 
-(defun chatgpt-shell-start (&optional no-focus new-session ignore-as-primary model-version system-prompt)
-  "Start a ChatGPT shell programmatically.
+;;;###autoload
+(defun ellm (&optional new-session)
+  "Start an interactive session with Ollama LLM.
+
+With NEW-SESSION, start a new session."
+  (interactive "P")
+  (ellm-start-session nil new-session))
+
+(defun ellm-start-session (&optional no-focus new-session ignore-as-primary model-version system-prompt)
+  "Start a ellm programmatically.
 
 Set NO-FOCUS to start in background.
 
@@ -1823,8 +1823,8 @@ ON-FINISHED is invoked when the entire interaction is finished and of the form:
                                        (region-end)))))
       (if (chatgpt-shell--primary-buffer)
           (with-current-buffer (chatgpt-shell--primary-buffer)
-            (chatgpt-shell-start no-focus))
-        (chatgpt-shell-start no-focus t))
+            (ellm-start-session no-focus))
+        (ellm-start-session no-focus t))
       (cl-flet ((send ()
                   (when shell-maker--busy
                     (shell-maker-interrupt nil))
