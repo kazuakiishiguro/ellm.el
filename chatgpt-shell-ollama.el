@@ -70,12 +70,8 @@ VALIDATE-COMMAND handler."
     (:url . chatgpt-shell-ollama--make-url)
     (:validate-command . chatgpt-shell-ollama--validate-command)))
 
-(defcustom chatgpt-shell-ollama-api-url-base "http://localhost:11434"
-  "Ollama API's base URL.
-
-API url = base + path.
-
-If you use Ollama through a proxy service, change the URL base."
+(defcustom ellm-base-url "http://localhost:11434"
+  "Base URL for Ollama API."
   :type 'string
   :safe #'stringp
   :group 'chatgpt-shell)
@@ -111,7 +107,7 @@ If you use Ollama through a proxy service, change the URL base."
           (map-elt (shell-maker--json-parse-string
                     (map-elt (shell-maker-make-http-request
                               :async nil
-                              :url (concat chatgpt-shell-ollama-api-url-base "/api/tags"))
+                              :url (concat ellm-base-url "/api/tags"))
                              :output))
                    'models)))
 
@@ -123,7 +119,7 @@ If you use Ollama through a proxy service, change the URL base."
   (let* ((data (shell-maker--json-parse-string
                 (map-elt (shell-maker-make-http-request
                           :async nil
-                          :url (concat chatgpt-shell-ollama-api-url-base "/api/show")
+                          :url (concat ellm-base-url "/api/show")
                           :data `((model . ,version)))
                          :output)))
          (token-width (let-alist data
@@ -189,7 +185,7 @@ replace all models with locally installed ollama models."
 
 (cl-defun chatgpt-shell-ollama--make-url (&key _command _model _settings)
   "Create the API URL using MODEL and SETTINGS."
-  (concat chatgpt-shell-ollama-api-url-base
+  (concat ellm-base-url
           "/api/chat"))
 
 (defun chatgpt-shell-ollama--extract-ollama-response (raw-response)
